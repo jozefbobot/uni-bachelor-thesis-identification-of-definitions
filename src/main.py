@@ -5,8 +5,7 @@ class DefinitionApp:
         self.root = root
         self.root.title("Identifikácia definícií v textoch")
         self.root.geometry("800x600")
-        self.root.resizable(False, False)  # Nastavení fixní velikosti okna
-        # Seznam pro sledování aktivních widgetů
+        self.root.resizable(False, False)
         self.active_widgets = []
         self.create_main_screen()
 
