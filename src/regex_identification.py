@@ -1,8 +1,10 @@
 import re
 
 def extract_definitions(text):
+    #rozdelenie textu na vety
     sentences = re.split(r'(?<=[.!?])\s+', text)
 
+    #vzory pre hladanie definicii
     patterns = [
         #priama definicia
         r'([\w\s\-]+?)\sje\s([\w\s\-,.()]+)',
@@ -16,19 +18,27 @@ def extract_definitions(text):
         r'Výraz\s([\w\s\-]+?)\sznamená\s([\w\s\-,.()]+)'
     ]
 
+    #zoznam pre uz spracované terminy
     seen_terms = set()
+
+    #zoznam pre nájdené definície
     definitions = []
 
     for sentence in sentences:
+        #odstránenie medzier zo začiatku a konca vety
         sentence = sentence.strip()
-            
+        
+        #prejdenie všetkých vzorov
         for pattern in patterns:
+            #hľadanie zhody
             matches = re.findall(pattern, sentence, re.IGNORECASE)
             for match in matches:
+                #extrakcia termínu a definície a odstránenie medzier
                 term = match[0].strip()
                 definition = match[1].strip()
                 
                 if term not in seen_terms:
+                    #pridanie terminu a definicie do zoznamu ak ešte nebol spracovany
                     seen_terms.add(term)
                     definitions.append((term, definition))
                     break
@@ -44,10 +54,10 @@ def main():
         "Pes je zviera."
     )
     
-    defs = extract_definitions(sample_text)
+    definitions = extract_definitions(sample_text)
     
-    if defs:
-        for term, definition in defs:
+    if definitions:
+        for term, definition in definitions:
             print(f"Termín: {term}")
             print(f"Definícia: {definition}")
             print("------")
