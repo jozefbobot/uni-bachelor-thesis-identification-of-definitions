@@ -3,11 +3,7 @@ from collections import defaultdict
 
 def extract_definitions_stanza(text):
     #inicializácia Stanza pre slovenský jazyk
-    try:
-        nlp = stanza.Pipeline('sk', processors='tokenize,pos,lemma,depparse')
-    except Exception as e:
-        stanza.download('sk')
-        nlp = stanza.Pipeline('sk', processors='tokenize,pos,lemma,depparse')
+    nlp = stanza.Pipeline('sk', processors='tokenize,pos,lemma,depparse')
     
     #spracovanie textu
     doc = nlp(text)

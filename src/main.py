@@ -2,6 +2,7 @@ import tkinter as tk
 import regex_identification
 import post_identification
 import os
+import time
 
 #grafivké rozhranie aplikácie
 class DefinitionIdentificationApp:
@@ -174,13 +175,7 @@ class DefinitionIdentificationApp:
 
         #adresáre pre ukladanie výsledkov
         regex_dir = os.path.join("results", "regex")
-        post_dir = os.path.join("results", "posTagging")
-
-        #ak adresáre neexistujú, vytvoria sa
-        if not os.path.exists(regex_dir):
-            os.makedirs(regex_dir)
-        if not os.path.exists(post_dir):
-            os.makedirs(post_dir)
+        post_dir = os.path.join("results", "post")
     
         #medicínske texty
         result_text.insert(tk.END, "MEDICÍNSKE TEXTY\n", "subtitle")
@@ -204,6 +199,9 @@ class DefinitionIdentificationApp:
                 total_texts = len(lines)
                 regex_texts_with_definition = 0
                 regex_texts_without_definition = 0
+
+                #začiatok merania času pre RegEx
+                regex_start_time = time.time()
             
                 for line in lines:
                     #odstránenie medzier zo začiatku a konca riadku
@@ -218,7 +216,11 @@ class DefinitionIdentificationApp:
                             #ak nebola najdena definícia zapíše sa text do súboru a zvýši sa počet textov bez definícií
                             without_def_file.write(line + "\n")
                             regex_texts_without_definition += 1
-        
+
+                #koniec merania času pre RegEx
+                regex_end_time = time.time()
+                regex_execution_time = regex_end_time - regex_start_time
+
             #analýza pomocou part-of-speech tagging
             #cesta k súboru pre texty bez definícií
             post_without_def_path = os.path.join(post_dir, "postMedicalTextsWithoutDefinitions.txt")
@@ -228,6 +230,9 @@ class DefinitionIdentificationApp:
                 #počitadlá pre štatistiky
                 post_texts_with_definition = 0
                 post_texts_without_definition = 0
+
+                #začiatok merania času pre POST
+                post_start_time = time.time()
             
                 for line in lines:
                     #odstránenie medzier zo začiatku a konca riadku
@@ -242,7 +247,11 @@ class DefinitionIdentificationApp:
                             #ak nebola najdena definícia zapíše sa text do súboru a zvýši sa počet textov bez definícií
                             without_def_file.write(line + "\n")
                             post_texts_without_definition += 1
-        
+
+                # Koniec merania času pre POST
+                post_end_time = time.time()
+                post_execution_time = post_end_time - post_start_time
+
             #výpočet percent
             regex_percentage = (regex_texts_with_definition / total_texts * 100) if total_texts > 0 else 0
             post_percentage = (post_texts_with_definition / total_texts * 100) if total_texts > 0 else 0
@@ -255,6 +264,7 @@ class DefinitionIdentificationApp:
             result_text.insert(tk.END, f"Počet textov s definíciami: {regex_texts_with_definition}\n")
             result_text.insert(tk.END, f"Počet textov bez definícií: {regex_texts_without_definition}\n")
             result_text.insert(tk.END, f"Percento úspešnosti: {regex_percentage:.2f}%\n\n")
+            result_text.insert(tk.END, f"Čas spracovania: {regex_execution_time:.4f} sekúnd\n\n")
 
             #metoda POST
             result_text.insert(tk.END, "Part-of-speech tagging metóda:\n", "method")
@@ -262,6 +272,8 @@ class DefinitionIdentificationApp:
             result_text.insert(tk.END, f"Počet textov s definíciami: {post_texts_with_definition}\n")
             result_text.insert(tk.END, f"Počet textov bez definícií: {post_texts_without_definition}\n")
             result_text.insert(tk.END, f"Percento úspešnosti: {post_percentage:.2f}%\n\n")
+            result_text.insert(tk.END, f"Čas spracovania: {post_execution_time:.4f} sekúnd\n\n")
+
         
         except Exception as e:
             #výpis chyby pri analýze medicínskych textov
@@ -288,6 +300,9 @@ class DefinitionIdentificationApp:
                 total_texts = len(lines)
                 regex_texts_with_definition = 0
                 regex_texts_without_definition = 0
+
+                #začiatok merania času pre RegEx
+                regex_start_time = time.time()
             
                 for line in lines:
                     #odstránenie medzier zo začiatku a konca riadku
@@ -302,6 +317,10 @@ class DefinitionIdentificationApp:
                             #ak nebola najdena definícia zapíše sa text do súboru a zvýši sa počet textov bez definícií
                             without_def_file.write(line + "\n")
                             regex_texts_without_definition += 1
+                
+                #koniec merania času pre RegEx
+                regex_end_time = time.time()
+                regex_execution_time = regex_end_time - regex_start_time
         
             #analýza pomocou part-of-speech tagging
             #cesta k súboru pre texty bez definícií
@@ -312,6 +331,9 @@ class DefinitionIdentificationApp:
                 #počitadlá pre štatistiky
                 post_texts_with_definition = 0
                 post_texts_without_definition = 0
+
+                # Začiatok merania času pre POST
+                post_start_time = time.time()
             
                 for line in lines:
                     #odstránenie medzier zo začiatku a konca riadku
@@ -326,7 +348,11 @@ class DefinitionIdentificationApp:
                             #ak nebola najdena definícia zapíše sa text do súboru a zvýši sa počet textov bez definícií
                             without_def_file.write(line + "\n")
                             post_texts_without_definition += 1
-        
+                
+                #koniec merania času pre POST
+                post_end_time = time.time()
+                post_execution_time = post_end_time - post_start_time
+
             #výpočet percent
             regex_percentage = (regex_texts_with_definition / total_texts * 100) if total_texts > 0 else 0
             post_percentage = (post_texts_with_definition / total_texts * 100) if total_texts > 0 else 0
@@ -338,6 +364,7 @@ class DefinitionIdentificationApp:
             result_text.insert(tk.END, f"Počet textov s definíciami: {regex_texts_with_definition}\n")
             result_text.insert(tk.END, f"Počet textov bez definícií: {regex_texts_without_definition}\n")
             result_text.insert(tk.END, f"Percento úspešnosti: {regex_percentage:.2f}%\n\n")
+            result_text.insert(tk.END, f"Čas spracovania: {regex_execution_time:.4f} sekúnd\n\n")
 
             #metoda POST
             result_text.insert(tk.END, "Part-of-speech tagging metóda:\n", "method")
@@ -345,6 +372,7 @@ class DefinitionIdentificationApp:
             result_text.insert(tk.END, f"Počet textov s definíciami: {post_texts_with_definition}\n")
             result_text.insert(tk.END, f"Počet textov bez definícií: {post_texts_without_definition}\n")
             result_text.insert(tk.END, f"Percento úspešnosti: {post_percentage:.2f}%\n\n")
+            result_text.insert(tk.END, f"Čas spracovania: {post_execution_time:.4f} sekúnd\n\n")
         
         except Exception as e:
             #výpis chyby pri analýze zmiešaných textov
