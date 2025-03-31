@@ -1,304 +1,171 @@
 import stanza
+import sys
 from collections import defaultdict
 
+#stanza nastavenie
+try:
+    nlp = stanza.Pipeline('sk', processors='tokenize,mwt,pos,lemma', verbose=False)
+except Exception as e:
+    print(f"Nepodarilo sa inicializovať Stanza pipeline: {e}", file=sys.stderr)
+    print("Uistite sa, že slovenský model ('sk') je stiahnutý a dostupný.", file=sys.stderr)
+
+#funkcia na extrakciu terminu a definície
+def get_text_from_words(words, start_index, end_index):
+    if not words or start_index >= end_index or start_index < 0 or end_index > len(words):
+        return ""
+    return " ".join([word.text for word in words[start_index:end_index]]).strip()
+
 def extract_definitions_stanza(text):
-    #inicializácia Stanza pre slovenský jazyk
-    nlp = stanza.Pipeline('sk', processors='tokenize,pos,lemma,depparse')
-    
-    #spracovanie textu
-    doc = nlp(text)
-    
-    definitions = []
-    seen_terms = set()
-    
-    #spracovanie viet
-    for sentence in doc.sentences:
-        #konverzia štruktúry vety
-        words = {word.id: word for word in sentence.words}
-        dependencies = defaultdict(list)
-        for word in sentence.words:
-            if word.head > 0:
-                dependencies[word.head].append(word.id)
+    try:
+        doc = nlp(text)
+    except Exception as e:
+        print(f"Chyba pri spracovaní textu pomocou Stanza: {e}", file=sys.stderr)
+        return []
         
-        #zoznam vzorcov na vyskúšanie
-        patterns_to_try = [
-            find_definition_pattern,
-            find_means_pattern,
-            find_defined_as_pattern,
-            find_is_pattern,
-            find_simple_is_pattern,
-            find_noun_root_pattern
-        ]
+    try:
+        found_definitions = []
+
+        for sentence in doc.sentences:
+            words = sentence.words
+            num_words = len(words)
+
+            for i, word in enumerate(words):
+                #pattern 1.1: X je Y (striktná verzia)
+                if word.lemma == 'byť' and word.upos == 'VERB' and word.feats and \
+                'Person=3' in word.feats and 'Number=Sing' in word.feats and \
+                'Tense=Pres' in word.feats and word.text.lower() == 'je':
+
+                    if i > 0 and i < num_words - 1:
+                        #definiendum = všetko pred 'je'
+                        term = get_text_from_words(words, 0, i)
+                        #definiens = všetko po 'je' (do konca vety)
+                        definition = get_text_from_words(words, i + 1, num_words)
+
+                        if term and definition:
+                            found_definitions.append((term, definition))
+                            
+                #pattern 1.2: X je Y (zjednodušená verzia)
+                elif word.text.lower() == 'je' and word.lemma == 'byť':
+                    if i > 0 and i < num_words - 1:
+                        #definiendum = všetko pred 'je'
+                        term = get_text_from_words(words, 0, i)
+                        #definiens = všetko po 'je' (do konca vety)
+                        definition = get_text_from_words(words, i + 1, num_words)
+                        
+                        if term and definition:
+                            found_definitions.append((term, definition))
+
+                #pattern 2: Definícia X je Y
+                if i == 0 and word.lemma == 'definícia' and word.upos == 'NOUN':
+                    for j in range(i + 1, num_words):
+                        if words[j].lemma == 'byť' and words[j].text.lower() == 'je':
+                            #definiendum = slová medzi 'Definícia' a 'je'
+                            term = get_text_from_words(words, i + 1, j)
+                            #definiens = slová po 'je'
+                            definition = get_text_from_words(words, j + 1, num_words)
+                            if term and definition:
+                                found_definitions.append((term, definition))
+                                break
+
+                #pattern 3: X je definovaný/á/é ako Y
+                elif word.lemma == 'byť' and word.text.lower() == 'je' and i < num_words - 2:
+                    next_word = words[i+1]
+                    after_next_word = words[i+2]
+
+                    if next_word.lemma == 'definovaný' and (next_word.upos == 'ADJ' or next_word.upos == 'VERB') \
+                    and after_next_word.lemma == 'ako':
+                        if i > 0 and i < num_words - 3:
+                            #definiendum = všetko pred 'je'
+                            term = get_text_from_words(words, 0, i)
+                            #definiens = všetko po 'ako'
+                            definition = get_text_from_words(words, i + 3, num_words)
+
+                            if term and definition:
+                                found_definitions.append((term, definition))
+
+                #pattern 4: X sa definuje ako Y
+                elif word.lemma == 'definovať' and word.upos == 'VERB' and word.feats and \
+                    'Person=3' in word.feats and 'Tense=Pres' in word.feats:
+
+                    if i > 0 and words[i-1].lemma == 'sa' and words[i-1].upos == 'PRON' \
+                        and i < num_words - 1 and words[i+1].lemma == 'ako':
+
+                        if i > 1 and i < num_words - 2:
+                            #definiendum = všetko pred 'sa'
+                            term = get_text_from_words(words, 0, i - 1)
+                            #definiens = všetko po 'ako'
+                            definition = get_text_from_words(words, i + 2, num_words)
+
+                            if term and definition:
+                                found_definitions.append((term, definition))
+
+                #pattern 5: Definovaním X rozumieme Y
+                elif word.lemma == 'rozumieť' and word.upos == 'VERB' and word.feats and \
+                    'Person=1' in word.feats and 'Number=Plur' in word.feats and 'Tense=Pres' in word.feats:
+
+                    if i > 1 and words[0].lemma == 'definovanie' and words[0].upos == 'NOUN' \
+                        and words[0].feats and 'Case=Ins' in words[0].feats:
+                        #definiendum = slová medzi "Definovaním" a "rozumieme"
+                        term = get_text_from_words(words, 1, i)
+                        #definiens = slová po "rozumieme"
+                        definition = get_text_from_words(words, i + 1, num_words)
+
+                        if term and definition:
+                            found_definitions.append((term, definition))
+
+                #pattern 6: X znamená Y
+                elif word.lemma == 'znamenať' and word.upos == 'VERB' and word.feats and \
+                    'Person=3' in word.feats and 'Number=Sing' in word.feats and 'Tense=Pres' in word.feats:
+
+                    if i > 0 and i < num_words - 1:
+                        #definiendum = všetko pred 'znamená'
+                        term = get_text_from_words(words, 0, i)
+                        #definiens = všetko po 'znamená'
+                        definition = get_text_from_words(words, i + 1, num_words)
+
+                        if term and definition:
+                            found_definitions.append((term, definition))
+
+                #pattern 7: Výraz X znamená Y
+                if i == 0 and word.lemma == 'výraz' and word.upos == 'NOUN':
+                    for j in range(i + 1, num_words):
+                        if words[j].lemma == 'znamenať' and words[j].text.lower() == 'znamená':
+                            #definiendum = slová medzi 'Výraz' a 'znamená'
+                            term = get_text_from_words(words, i + 1, j)
+                            #definiens = slová po 'znamená'
+                            definition = get_text_from_words(words, j + 1, num_words)
+                            if term and definition:
+                                found_definitions.append((term, definition))
+                                break
+
+        #odstránenie duplikátov
+        unique_defs = []
+        seen = set()
+        for term, definition in found_definitions:
+            key = (term, definition)
+            if key not in seen:
+                unique_defs.append(key)
+                seen.add(key)
+
+        return unique_defs
         
-        for pattern_func in patterns_to_try:
-            found = pattern_func(sentence, words, dependencies, seen_terms, definitions)
-            if found:
-                break
-    
-    return definitions
-
-def find_definition_pattern(sentence, words, dependencies, seen_terms, definitions):
-    #hladá vzor "Definícia X je Y"
-    definition_word = None
-    for word in sentence.words:
-        if word.lemma.lower() == "definícia":
-            definition_word = word
-            break
-            
-    if definition_word:
-        term_id = None
-        for dep_id in dependencies[definition_word.id]:
-            if words[dep_id].deprel == "nmod":
-                term_id = dep_id
-                break
-                
-        if term_id:
-            verb_id = None
-            for w_id, w in words.items():
-                if w.lemma == "byť" and (w.head == 0 or w.head == definition_word.id):
-                    verb_id = w_id
-                    break
-                    
-            if verb_id:
-                definition_id = None
-                for w_id, w in words.items():
-                    if w.head == verb_id and w.deprel == "nsubj" and w_id != definition_word.id:
-                        definition_id = w_id
-                        break
-                
-                if not definition_id:
-                    for w_id, w in words.items():
-                        if w.head == verb_id and w.id != definition_word.id and w.deprel not in ["punct", "aux", "cop"]:
-                            definition_id = w_id
-                            break
-                        
-                if definition_id:
-                    term_lemma = words[term_id].lemma
-                    if term_lemma == words[term_id].text and is_genitive(term_lemma):
-                        term_lemma = get_lemma(term_lemma)
-                    
-                    definition = extract_text(definition_id, words, dependencies)
-                    
-                    if term_lemma and definition and term_lemma not in seen_terms:
-                        seen_terms.add(term_lemma)
-                        definitions.append((term_lemma, definition))
-                        return True
-    return False
-
-def find_means_pattern(sentence, words, dependencies, seen_terms, definitions):
-    #hladá vzor "X znamená Y"
-    for word in sentence.words:
-        if word.lemma == "znamenať" and word.deprel == "root":
-            term_id = None
-            definition_id = None
-            
-            for dep_id in dependencies[word.id]:
-                if words[dep_id].deprel == "nsubj":
-                    if not term_id:
-                        term_id = dep_id
-                    elif not definition_id:
-                        definition_id = dep_id
-            
-            if term_id and not definition_id:
-                for dep_id in dependencies[word.id]:
-                    if words[dep_id].deprel in ["obj", "xcomp", "obl"]:
-                        definition_id = dep_id
-                        break
-            
-            if term_id and definition_id:
-                term_lemma = words[term_id].lemma
-                definition = extract_text(definition_id, words, dependencies)
-                
-                if term_lemma and definition and term_lemma not in seen_terms:
-                    seen_terms.add(term_lemma)
-                    definitions.append((term_lemma, definition))
-                    return True
-    return False
-
-def find_defined_as_pattern(sentence, words, dependencies, seen_terms, definitions):
-    #hladá vzor "X je definovaný ako Y"
-    for word in sentence.words:
-        if (word.lemma in ["definovať", "definícia"] or "defin" in word.lemma) and word.upos in ["ADJ", "VERB"]:
-            term_id = None
-            
-            if word.deprel == "root":
-                for dep_id in dependencies[word.id]:
-                    if words[dep_id].deprel in ["nsubj", "nsubj:pass"]:
-                        term_id = dep_id
-                        break
-
-            else:
-                for w_id, w in words.items():
-                    if w.head == word.head and w.deprel in ["nsubj", "nsubj:pass"]:
-                        term_id = w_id
-                        break
-            
-            if not term_id:
-                continue
-                
-            ako_id = None
-            for w_id, w in words.items():
-                if w.lemma == "ako":
-                    ako_id = w_id
-                    break
-                    
-            if not ako_id:
-                continue
-                
-            definition_head_id = None
-            for w_id, w in words.items():
-                if w.head == word.id and ako_id in dependencies[w_id]:
-                    definition_head_id = w_id
-                    break
-            
-            if not definition_head_id:
-                for w_id, w in sorted(words.items()):
-                    if w.head == ako_id:
-                        definition_head_id = w_id
-                        break
-            
-            if not definition_head_id:
-                for w_id in sorted(words.keys()):
-                    if w_id > ako_id:
-                        definition_head_id = w_id
-                        break
-                
-            if term_id and definition_head_id:
-                term_lemma = words[term_id].lemma
-                
-                definition = extract_text(definition_head_id, words, dependencies)
-                if definition.lower().startswith("ako "):
-                    definition = definition[4:]
-                
-                if term_lemma and definition and term_lemma not in seen_terms:
-                    seen_terms.add(term_lemma)
-                    definitions.append((term_lemma, definition))
-                    return True
-    return False
-
-def find_is_pattern(sentence, words, dependencies, seen_terms, definitions):
-    #hladá všeobecný vzor "X je Y" s dvoma podmetmi
-    for word in sentence.words:
-        if word.lemma == "byť" and word.deprel == "root":
-            subjects = []
-            for dep_id in dependencies[word.id]:
-                if words[dep_id].deprel in ["nsubj", "nsubj:pass"]:
-                    subjects.append(dep_id)
-            
-            if len(subjects) < 2:
-                continue
-                
-            term_id = subjects[0]
-            definition_id = subjects[1]
-            
-            term_lemma = words[term_id].lemma
-            definition = extract_text(definition_id, words, dependencies)
-            
-            if term_lemma and definition and term_lemma not in seen_terms:
-                seen_terms.add(term_lemma)
-                definitions.append((term_lemma, definition))
-                return True
-    return False
-
-def find_simple_is_pattern(sentence, words, dependencies, seen_terms, definitions):
-    #hladá jednoduchý vzor "X je Y"
-    for word in sentence.words:
-        if word.lemma == "byť" and word.deprel == "cop":
-            root_id = word.head
-            
-            term_id = None
-            for dep_id in dependencies[root_id]:
-                if words[dep_id].deprel == "nsubj":
-                    term_id = dep_id
-                    break
-            
-            if term_id and root_id:
-                term_lemma = words[term_id].lemma
-                definition = words[root_id].text
-                
-                if term_lemma and definition and term_lemma not in seen_terms:
-                    seen_terms.add(term_lemma)
-                    definitions.append((term_lemma, definition))
-                    return True
-    return False
-
-def find_noun_root_pattern(sentence, words, dependencies, seen_terms, definitions):
-    #hladá vzor kde podstatné meno je koreňom vety a má podmet
-    for word in sentence.words:
-        if word.upos == "NOUN" and word.deprel == "root":
-            term_id = None
-            for dep_id in dependencies[word.id]:
-                if words[dep_id].deprel == "nsubj":
-                    term_id = dep_id
-                    break
-                    
-            if term_id:
-                for dep_id in dependencies[word.id]:
-                    if words[dep_id].lemma == "byť" and words[dep_id].deprel == "cop":
-                        term_lemma = words[term_id].lemma
-                        definition = word.text
-                        
-                        if term_lemma and definition and term_lemma not in seen_terms:
-                            seen_terms.add(term_lemma)
-                            definitions.append((term_lemma, definition))
-                            print(f"DEBUG: Našiel sa vzor s podstatným menom ako koreňom: {term_lemma} = {definition}")
-                            return True
-    return False
-
-def is_genitive(word):
-    genitive_endings = ['a', 'u', 'ov', 'í', 'ého', 'ej']
-    for ending in genitive_endings:
-        if word.endswith(ending):
-            return True
-    return False
-
-def get_lemma(word):
-    if word.endswith('a') and len(word) > 3:
-        return word[:-1]
-    elif word.endswith('u'):
-        return word[:-1]
-    elif word.endswith('ov'):
-        return word[:-2]
-    
-    return word
-
-def extract_text(root_id, words, dependencies):
-    if not root_id or root_id not in words:
-        return None
-    
-    def get_subtree_ids(node_id):
-        subtree = [node_id]
-        for child_id in dependencies[node_id]:
-            subtree.extend(get_subtree_ids(child_id))
-        return subtree
-    
-    subtree_ids = get_subtree_ids(root_id)
-    
-    sorted_ids = sorted(subtree_ids)
-    
-    text = ' '.join(words[word_id].text for word_id in sorted_ids)
-    
-    return text.strip()
-
+    except Exception as e:
+        print(f"Chyba pri identifikácii definícií: {e}", file=sys.stderr)
+        return []
+        
 def main():
-    sample_text = (
-        "Algoritmus je definovaný ako presne určený postup krokov, ktorý vedie k riešeniu konkrétneho problému. "
-        "Pes je zviera. "
-        "Definícia počítača je elektronické zariadenie, ktoré spracováva dáta. "
-        "Fotosyntéza znamená proces, v ktorom rastliny vyrábajú kyslík. "
-    )
-    
-    print("Hľadanie definícií pomocou Stanza...")
-    definitions = extract_definitions_stanza(sample_text)
-    
-    if definitions:
-        print("\nNájdené definície:")
-        for term, definition in definitions:
-            print(f"Termín: {term}")
-            print(f"Definícia: {definition}")
-            print("------")
-    else:
-        print("V texte nebola nájdená žiadna definícia")
+    text_s_definicami = """
+    Pes je zviera.
+    """
+
+    print("\n--- Hľadanie definícií pomocou Stanza ---")
+    najdene_definicie = extract_definitions_stanza(text_s_definicami)
+
+    print(f"\nNájdených definícií: {len(najdene_definicie)}")
+    for i, (term, definition) in enumerate(najdene_definicie):
+        print(f"\nDefinícia č. {i+1}:")
+        print(f"  Termín (Definiendum): '{term}'")
+        print(f"  Definícia (Definiens): '{definition}'")
 
 if __name__ == "__main__":
     main()
