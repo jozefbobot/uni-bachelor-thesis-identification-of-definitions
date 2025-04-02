@@ -166,7 +166,7 @@ class DefinitionIdentificationApp:
         result_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         scrollbar = tk.Scrollbar(result_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        result_text = tk.Text(result_frame, width=60, height=25, font=("Arial", 12), wrap=tk.WORD)
+        result_text = tk.Text(result_frame, width=60, height=25, font=("Arial", 12), wrap=tk.WORD, padx=15, pady=10)
         result_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=result_text.yview)
         result_text.config(yscrollcommand=scrollbar.set)
@@ -263,7 +263,7 @@ class DefinitionIdentificationApp:
             result_text.insert(tk.END, f"Celkový počet textov: {total_texts}\n")
             result_text.insert(tk.END, f"Počet textov s definíciami: {regex_texts_with_definition}\n")
             result_text.insert(tk.END, f"Počet textov bez definícií: {regex_texts_without_definition}\n")
-            result_text.insert(tk.END, f"Percento úspešnosti: {regex_percentage:.2f}%\n\n")
+            result_text.insert(tk.END, f"Percento úspešnosti: {regex_percentage:.2f}%\n")
             result_text.insert(tk.END, f"Čas spracovania: {regex_execution_time:.4f} sekúnd\n\n")
 
             #metoda POST
@@ -271,7 +271,7 @@ class DefinitionIdentificationApp:
             result_text.insert(tk.END, f"Celkový počet textov: {total_texts}\n")
             result_text.insert(tk.END, f"Počet textov s definíciami: {post_texts_with_definition}\n")
             result_text.insert(tk.END, f"Počet textov bez definícií: {post_texts_without_definition}\n")
-            result_text.insert(tk.END, f"Percento úspešnosti: {post_percentage:.2f}%\n\n")
+            result_text.insert(tk.END, f"Percento úspešnosti: {post_percentage:.2f}%\n")
             result_text.insert(tk.END, f"Čas spracovania: {post_execution_time:.4f} sekúnd\n\n")
 
         
@@ -363,7 +363,7 @@ class DefinitionIdentificationApp:
             result_text.insert(tk.END, f"Celkový počet textov: {total_texts}\n")
             result_text.insert(tk.END, f"Počet textov s definíciami: {regex_texts_with_definition}\n")
             result_text.insert(tk.END, f"Počet textov bez definícií: {regex_texts_without_definition}\n")
-            result_text.insert(tk.END, f"Percento úspešnosti: {regex_percentage:.2f}%\n\n")
+            result_text.insert(tk.END, f"Percento úspešnosti: {regex_percentage:.2f}%\n")
             result_text.insert(tk.END, f"Čas spracovania: {regex_execution_time:.4f} sekúnd\n\n")
 
             #metoda POST
@@ -371,7 +371,7 @@ class DefinitionIdentificationApp:
             result_text.insert(tk.END, f"Celkový počet textov: {total_texts}\n")
             result_text.insert(tk.END, f"Počet textov s definíciami: {post_texts_with_definition}\n")
             result_text.insert(tk.END, f"Počet textov bez definícií: {post_texts_without_definition}\n")
-            result_text.insert(tk.END, f"Percento úspešnosti: {post_percentage:.2f}%\n\n")
+            result_text.insert(tk.END, f"Percento úspešnosti: {post_percentage:.2f}%\n")
             result_text.insert(tk.END, f"Čas spracovania: {post_execution_time:.4f} sekúnd\n\n")
         
         except Exception as e:
@@ -470,7 +470,7 @@ class DefinitionIdentificationApp:
         back_button.place(x=20, y=20)
         self.active_widgets.append(back_button)
         
-        #nazov podstránky
+        #názov podstránky
         label = tk.Label(self.root, text="Porovnanie identifikačných metód", font=("Arial", 24, "bold"))
         label.pack(pady=20)
         self.active_widgets.append(label)
@@ -478,7 +478,7 @@ class DefinitionIdentificationApp:
         #informačný text
         info_label = tk.Label(
             self.root,
-            text="Kliknutím na tlačidlo sa spustí porovnanie identifikácie definícií\nv medicínskych a zmiešaných textoch",
+            text="Kliknutím na tlačidlo sa spustí porovnanie identifikácie definícií\nv medicínskych a zmiešaných textoch.\nPorovnávanie môže trvať až niekoľko desiatok sekúnd!",
             font=("Arial", 14),
             justify=tk.CENTER
         )
