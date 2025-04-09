@@ -159,16 +159,15 @@ class DefinitionIdentificationApp:
             )
             no_result_label.pack(pady=50, expand=True)
     
-    # Pomocná metóda pre vytvorenie podstránky s textovým poľom
     def create_input_page(self, title, identify_command):
         # Premazanie obsahu
         self.clear_screen()
-        
+    
         # Hlavný rámec
         main_frame = ttk.Frame(self.root, padding=(20, 20, 20, 20))
         main_frame.pack(fill=tk.BOTH, expand=True)
         self.active_widgets.append(main_frame)
-        
+    
         # Tlačidlo späť pre návrat na hlavnú stránku
         back_button = ttk.Button(
             main_frame,
@@ -176,7 +175,7 @@ class DefinitionIdentificationApp:
             command=self.create_main_screen
         )
         back_button.pack(anchor=tk.NW, pady=(0, 10 * self.scale))
-        
+    
         # Názov podstránky
         label = ttk.Label(
             main_frame, 
@@ -184,36 +183,46 @@ class DefinitionIdentificationApp:
             style="Title.TLabel"
         )
         label.pack(pady=(0, 15 * self.scale))
-        
-        # Rámec pre textové pole
+    
+        # Rámec pre textové pole - nastavená maximálna výška
         text_frame = ttk.Frame(main_frame)
         text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10 * self.scale))
-        
+    
+        # Nastavenie váhy pre riadky v main_frame, aby sa tlačidlo zobrazilo dole
+        main_frame.grid_rowconfigure(0, weight=0)  # pre back_button
+        main_frame.grid_rowconfigure(1, weight=0)  # pre label
+        main_frame.grid_rowconfigure(2, weight=3)  # pre text_frame - väčšina priestoru
+        main_frame.grid_rowconfigure(3, weight=1)  # pre tlačidlo - rezervovaný priestor dole
+    
         # Scrollbar pre textové pole
         scrollbar = ttk.Scrollbar(text_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        # Textové pole na vloženie textu
+    
+        # Textové pole na vloženie textu - limitovaná výška
         self.text_field = tk.Text(
             text_frame, 
             font=("Arial", int(14 * self.scale)),
-            wrap=tk.WORD
+            wrap=tk.WORD,
+            height=15  # Nastavenie fixnej výšky
         )
         self.text_field.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.text_field.yview)
         self.text_field.config(yscrollcommand=scrollbar.set)
-        
-        # Tlačidlo pre spustenie identifikácie
+    
+        # Tlačidlo pre spustenie identifikácie v samostatnom rámci
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=(20 * self.scale, 0))
+    
         identify_button = ttk.Button(
-            main_frame,
+            button_frame,
             text="Identifikovať",
             command=identify_command,
             style="Identify.TButton"
         )
         # Umiestnenie tlačidla na stred s menšou šírkou
         identify_button.pack(pady=10 * self.scale, ipady=8 * self.scale, 
-                            anchor=tk.CENTER, expand=False,
-                            padx=100 * self.scale)
+                        anchor=tk.CENTER, expand=False,
+                        padx=100 * self.scale)
     
     # Pomocná metóda pre analýzu textov
     def analyze_texts(self, text_file_path, regex_output_path, post_output_path, result_text):
